@@ -5174,7 +5174,9 @@ async function fetchHotComments(count = 20) {
 
 function rebuildDerivedContent() {
   const body = Array.isArray(state.subtitleBody) ? state.subtitleBody : [];
-  state.markdown = body.length ? buildMarkdown(state, body, state.settings) : "";
+  // 视频无字幕时，仍生成只含视频信息（简介等）的笔记，便于直接保存到 Obsidian。
+  const hasVideoMeta = Boolean(state.bvid);
+  state.markdown = body.length || hasVideoMeta ? buildMarkdown(state, body, state.settings) : "";
   state.srt = body.length ? buildSrt(body) : "";
   state.txt = body.length ? buildTxt(body, state.settings) : "";
   byId(ids.preview).value = body.length ? buildSubtitlePreview(body, state.settings) : "";
@@ -5269,12 +5271,15 @@ function buildMarkdown(meta, body, settings) {
 
   pushOptionalLines(lines, noteSections.before_chapters);
 
-  if (chapterLines.length > 0) {
+  // 无字幕时，章节与字幕区块一并跳过。
+  if (body.length > 0 && chapterLines.length > 0) {
     lines.push("## 章节", "", ...chapterLines, "");
   }
 
   pushOptionalLines(lines, noteSections.before_subtitle);
-  lines.push("## 字幕", "", ...subtitleSectionLines);
+  if (body.length > 0) {
+    lines.push("## 字幕", "", ...subtitleSectionLines);
+  }
 
   const hotCommentLines = buildHotCommentLines(
     settings?.includeHotCommentsInNote ? meta?.hotComments || [] : []
